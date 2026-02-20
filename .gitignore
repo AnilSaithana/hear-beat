@@ -1,0 +1,61 @@
+############################
+# OS / Editor junk
+############################
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
+*.iml
+
+############################
+# Java / Maven / Spring Boot
+############################
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+*.class
+*.log
+
+# Spring Boot config (keep secrets out)
+application-local.yml
+application-dev.yml
+application-prod.yml
+
+############################
+# PlatformIO / ESP8266
+############################
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# PlatformIO build artifacts
+*.elf
+*.bin
+*.map
+
+############################
+# Arduino / ESP temp
+############################
+*.hex
+*.eep
+*.lst
+
+############################
+# Credentials / Secrets
+############################
+secrets.h
+wifi_secrets.h
+.env
+.env.*
+
+############################
+# Logs / runtime data
+############################
+logs/
+*.out
+
+############################
+# Misc
+############################
+node_modules/
