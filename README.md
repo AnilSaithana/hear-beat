@@ -1,136 +1,56 @@
-#IoT Heartbeat & Command Platform (v1)
+# 🛰️ IoT Heartbeat & Command Platform (v1)
 
-An industry-style IoT backend platform prototype that demonstrates reliable
-device lifecycle management, heartbeat-based online/offline detection, and
-bi-directional command execution using MQTT and Spring Boot.
+[![Spring Boot](https://img.shields.io/badge/Backend-Spring%20Boot%203-brightgreen?style=for-the-badge&logo=springboot)](https://spring.io/)
+[![MQTT](https://img.shields.io/badge/Messaging-MQTT%20(Mosquitto)-blue?style=for-the-badge&logo=mqtt)](https://mqtt.org/)
+[![Hardware](https://img.shields.io/badge/Hardware-ESP8266%20%2F%20NodeMCU-orange?style=for-the-badge&logo=espressif)](https://www.espressif.com/)
 
-This project focuses on correctness, reliability, and platform design rather
-than UI or dashboards.
+An industry-style IoT backend platform prototype demonstrating reliable device lifecycle management, heartbeat-based online/offline detection, and stateful bi-directional command execution.
 
-⸻
+---
 
-##🎯 Problem Statement
+## 🎯 Problem Statement
+In production IoT, networks are unreliable and devices fail silently. 
+* **The Reality:** Devices go offline, commands vanish, and backends often "guess" the state.
+* **The Solution:** This project implements a **Reliability-First** architecture where the backend owns the device state and confirms execution via **Stateful ACKs**.
 
-In real-world IoT systems:
-	•	Devices silently go offline
-	•	Networks are unreliable
-	•	Commands may be delivered but not executed
-	•	Backends must not trust device-side claims blindly
+---
 
-##Most failures are operational, not functional.
+## 🏗️ Architecture Overview
 
-This project demonstrates how a backend platform should:
-	•	Detect device liveness reliably
-	•	Own device state
-	•	Issue commands asynchronously
-	•	Confirm actual execution, not just receipt
+| Component | Role |
+| :--- | :--- |
+| **ESP8266 / NodeMCU** | Publishes telemetry, executes actions, and sends ACKs. |
+| **Mosquitto Broker** | The high-performance MQTT Data Plane. |
+| **Spring Boot Backend** | The Control Plane, Heartbeat Detector, and Device Registry. |
 
-⸻
+### 🔁 Data Flow
+1. **Telemetry:** `devices/{id}/telemetry` ➡️ Used as a **Heartbeat** pulse.
+2. **Command:** `REST POST` ➡️ `MQTT devices/{id}/command` ➡️ **Device Execution**.
+3. **ACK:** `Device` ➡️ `MQTT devices/{id}/command/ack` ➡️ **Backend State Update**.
 
-##🧠 Key Concepts Implemented
-	•	Event-driven ingestion using MQTT
-	•	Backend-owned device lifecycle
-	•	Heartbeat-based online/offline detection
-	•	REST control plane
-	•	MQTT data plane
-	•	Command → execute → stateful ACK loop
-	•	Reconnect-safe MQTT subscriptions
+---
 
-⸻
+## 🚀 Features
 
-##🏗️ Architecture Overview
-##ESP8266 / NodeMCU
-  ├─ Publishes telemetry (heartbeat)
-  ├─ Subscribes to commands
-  ├─ Executes actions (LED, etc.)
-  └─ Sends stateful ACKs
-          |
-          |  MQTT
-          |
-##MQTT Broker (Mosquitto)
-          |
-          |  MQTT
-          |
-##Spring Boot Backend
-  ├─ MQTT Telemetry Consumer
-  ├─ Device Registry (in-memory)
-  ├─ Heartbeat & Offline Detector
-  ├─ Command Publisher (QoS 1)
-  ├─ Command ACK Consumer
-  └─ REST APIs (Control Plane)
-          |
-          |  REST
-          |
-##External Clients
-  ├─ curl
-  └─ other backend services
-##🔁 Data Flow
+### ✅ Implemented
+- [x] **Heartbeat Ingestion:** Automated tracking of "Last Seen" timestamps.
+- [x] **Offline Detection:** Scheduled task to mark inactive devices.
+- [x] **Stateful ACKs:** Confirms *actual* device state, not just command receipt.
+- [x] **QoS 1 Messaging:** Guaranteed delivery for critical commands.
+- [x] **Reconnect-Safe:** Subscriptions automatically recover after broker restarts.
 
-##Telemetry / Heartbeat
+### ❌ Out of Scope (By Design)
+- UI / Dashboards (Focus is on the API).
+- Cloud Deployment / Auth.
+- Persistence (Currently in-memory; Database planned).
 
-##Topic
-devices/{deviceId}/telemetry
-##Payload example
-{
-  "uptime": 323,
-  "rssi": -48
-}
-##Each telemetry message is treated as a heartbeat.
-##Command Flow
-REST → MQTT → Device → MQTT ACK → Backend
-##Topics
-devices/{deviceId}/command
-devices/{deviceId}/command/ack
-Commands are:
-	•	Issued via REST
-	•	Delivered via MQTT
-	•	Executed on device
-	•	Acknowledged with actual resulting state
-##📦 Tech Stack
+---
 
-##Backend
-	•	Java 17
-	•	Spring Boot
-	•	Eclipse Paho MQTT Client
-	•	Maven
+## 📡 REST API (Control Plane)
 
-##Device
-	•	ESP8266 (ESP-12E / NodeMCU)
-	•	PlatformIO
-	•	PubSubClient
-
-##Messaging
-	•	Mosquitto MQTT Broker (local)
-
-⸻
-
-##🚀 Features
-
-##✅ Implemented
-	•	Device heartbeat ingestion
-	•	Online / offline detection via scheduler
-	•	Backend-owned device state
-	•	REST API to query device status
-	•	REST API to issue commands
-	•	MQTT command publishing (QoS 1)
-	•	Device command execution
-	•	Stateful ACKs (actual device state)
-	•	Reconnect-safe MQTT subscriptions
-
-##❌ Not in Scope (by design)
-	•	UI / dashboards
-	•	Cloud deployment
-	•	Authentication / ACLs
-	•	Database persistence (planned)
-
-⸻
-
-##📡 REST APIs
-
-Get all devices
-##GET /api/devices
-GET /api/devices
-##Response
+### 1. List All Devices
+`GET /api/devices`
+```json
 [
   {
     "deviceId": "node-001",
@@ -138,70 +58,113 @@ GET /api/devices
     "lastSeenEpochMs": 1771499812345
   }
 ]
-##Get single device
-GET /api/devices/{deviceId}
-##Send command to device
-POST /api/devices/{deviceId}/commands
-##Payload
-{
-  "type": "LED",
-  "payload": "ON"
+```
+### 🔁 2. Data Flow & Communication Strategy**
+
+### Telemetry / Heartbeat
+* **Topic:** `devices/{deviceId}/telemetry`
+* **Payload:** `{ "uptime": 323, "rssi": -48 }`
+* **Logic:** Each incoming telemetry message is treated as a physical heartbeat. If no message is received within the timeout window, the backend marks the device **OFFLINE**.
+
+### Command Execution Loop
+The platform uses a stateful loop to ensure commands are actually executed, not just sent:
+1. **REST Call:** `POST /api/devices/{id}/commands`
+2. **MQTT Issue:** Backend publishes to `devices/{deviceId}/command` (QoS 1).
+3. **Device Action:** ESP8266 receives, toggles hardware (e.g., LED), and confirms.
+4. **Stateful ACK:** Device publishes result to `devices/{deviceId}/command/ack`.
+5. **Update:** Backend updates the registry with the *actual* resulting state.
+
+---
+
+## 📦 3. Tech Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| **Backend** | Java 17, Spring Boot, Eclipse Paho MQTT Client, Maven |
+| **Device** | ESP8266 (NodeMCU), PlatformIO, PubSubClient |
+| **Messaging** | Mosquitto MQTT Broker (Local/Docker) |
+
+---
+
+## 🚀 4. Features & Roadmap
+
+### ✅ Implemented
+- [x] **Heartbeat Ingestion:** Automated tracking of "Last Seen" timestamps.
+- [x] **Online/Offline Detection:** Scheduler-based presence monitoring.
+- [x] **Stateful ACKs:** Verification of actual device state.
+- [x] **Reconnect-Safe:** MQTT subscriptions survive broker/network restarts.
+- [x] **REST Control Plane:** Clean API for external service integration.
+
+### ❌ Not in Scope (By Design)
+- UI / Dashboards (Focus is on the API layer).
+- Authentication / ACLs (Protocol-focused prototype).
+- Database Persistence (Planned for next version).
+
+---
+
+## 📡 5. REST API Reference
+
+### List All Devices
+`GET /api/devices`
+```json
+[
+  {
+    "deviceId": "node-001",
+    "online": true,
+    "lastSeenEpochMs": 1771499812345
+  }
+]
+```
+### Send Command to Device
+`POST /api/devices/{deviceId}/commands`
+
+**Payload:**
+```json
+{ 
+  "type": "LED", 
+  "payload": "ON" 
 }
-202 Accepted
-(Command execution is asynchronous)
+```
+## ⚙️ 6. How to Run Locally
 
-⚙️ How to Run Locally
-##1. Start MQTT Broker
+### 1. Start MQTT Broker
 mosquitto -v -c mosquitto-local.conf
-##Minimal config
-listener 1883 0.0.0.0
-allow_anonymous true
-##2. Run Spring Boot Backend
+
+# Minimal mosquitto-local.conf content:
+# listener 1883 0.0.0.0
+# allow_anonymous true
+
+### 2. Run Spring Boot Backend
 mvn spring-boot:run
-##3. Flash ESP8266 Firmware
-	•	Configure Wi-Fi credentials
-	•	Configure broker IP
-	•	Upload using PlatformIO
-	•	Open serial monitor
-##4. Verify End-to-End
+
+### 3. Flash ESP8266 Firmware
+# Configure Wi-Fi credentials and broker IP in main.cpp
+# Use PlatformIO to Build and Upload
+
+### 4. Verify End-to-End
+# Check registry
 curl http://localhost:8080/api/devices
-Send Command:
+
+# Send Command (Example: PING)
 curl -X POST http://localhost:8080/api/devices/node-001/commands \
-  -H "Content-Type: application/json" \
-  -d '{ "type": "PING", "payload": "" }'
+-H "Content-Type: application/json" \
+-d '{ "type": "PING", "payload": "" }'
 
-  🧪 Failure Scenarios Tested
-	•	Device power off → offline detected
-	•	Wi-Fi drop → reconnect + resubscribe
-	•	Broker restart → recovery
-	•	Command ACK confirms actual state
+---
 
-⸻
+## 🧩 7. Design Decisions
+* Heartbeats vs LWT: Time-based pulses detect hung devices better than TCP flags.
+* Planes: REST for Control Plane; MQTT for Data Plane.
+* Reliability: Uses MQTT QoS 1 for guaranteed command delivery.
 
-##🧩 Design Decisions
-	•	Backend is the source of truth
-	•	Heartbeats are time-based, not connection-based
-	•	REST is control plane, MQTT is data plane
-	•	ACKs confirm state, not intent
-	•	In-memory store used for clarity (DB planned)
+---
 
-⸻
+## 🔮 8. Planned Enhancements
+- [ ] Command lifecycle persistence (PENDING -> SUCCESS -> TIMEOUT).
+- [ ] PostgreSQL integration for device history.
+- [ ] Authentication & per-device ACLs.
 
-##🔮 Planned Enhancements
-	•	Command lifecycle persistence (PENDING → SUCCESS → TIMEOUT)
-	•	Database backing (Postgres)
-	•	Retry & idempotency logic
-	•	Authentication & per-device ACLs
-	•	OPC UA integration as an edge data source
+---
 
-⸻
-
-##👨‍💻 Author Notes
-
-This project is intentionally built as a platform reference, not a consumer product.
-
-It reflects how real IoT backends:
-	•	Detect failures
-	•	Handle unreliable devices
-	•	Expose clean control planes
-	•	Remain boring and reliable
+## 👨‍💻 Author Notes
+This project reflects how industrial IoT backends handle unreliable hardware while maintaining a clean, predictable API.
