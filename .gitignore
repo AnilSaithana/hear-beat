@@ -59,3 +59,7 @@ logs/
 # Misc
 ############################
 node_modules/
+spring-backend-tcplocalhost1883/.lck
+mvnw.cmd
+mvnw
+HELP.md
